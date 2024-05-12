@@ -1,0 +1,10 @@
+.cache/
+viper-lang/
+obj/
+
+*.so
+*.o
+*.out
+
+compile_commands.json
+vstd_tests

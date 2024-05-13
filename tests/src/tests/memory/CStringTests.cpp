@@ -10,7 +10,8 @@
 
 extern "C"
 {
-    void* _F3std6memcpyAbPbPi(void* p1, void* p2, int count);
+    void* _F3std6memcpyAbPbPi(void* dest, void* src, int count);
+    void* _F3std6memsetAbPii(void* ptr, int value, int count);
 }
 
 namespace MemoryTests
@@ -32,6 +33,21 @@ namespace MemoryTests
         for (int i = 0; i < 0x1000; ++i)
         {
             REQUIRE(to[i] == from[i]);
+        }
+    }
+
+    TEST(memset, CStringTests)
+    {
+        std::unique_ptr<unsigned char[]> ptr = std::make_unique<unsigned char[]>(0x1000);
+
+        random_bytes_engine rbe;
+        std::generate(ptr.get(), ptr.get() + 0x1000, std::ref(rbe));
+
+        _F3std6memsetAbPii(ptr.get(), 0x69, 0x1000);
+
+        for (int i = 0; i < 0x1000; ++i)
+        {
+            REQUIRE(ptr[i] == 0x69);
         }
     }
 }

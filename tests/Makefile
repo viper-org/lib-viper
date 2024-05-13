@@ -1,12 +1,12 @@
-override CXX=c++
-override LD=c++
+override CXX=g++
+override LD=g++
 
 override CXXFLAGS += \
 	-std=c++20 \
 	-Iinclude
 
 override LDFLAGS += \
-	-L ../lib \
+	-L../lib \
 	-lvpr
 
 override TARGET := vstd_tests
@@ -26,7 +26,7 @@ obj/%.cpp.o: src/%.cpp Makefile
 
 $(TARGET): $(OBJ)
 	mkdir -p "$$(dirname $@)"
-	$(LD) $(LDFLAGS) $^ -o $@
+	$(LD) $^ -o $@ $(LDFLAGS)
 
 .PHONY: clean
 clean:

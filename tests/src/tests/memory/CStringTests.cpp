@@ -8,7 +8,10 @@
 #include <memory>
 #include <random>
 
-extern "C" void* _F3std6memcpyAbPbPi(void* p1, void* p2, int count);
+extern "C"
+{
+    void* _F3std6memcpyAbPbPi(void* p1, void* p2, int count);
+}
 
 namespace MemoryTests
 {

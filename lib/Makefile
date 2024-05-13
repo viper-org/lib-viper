@@ -20,7 +20,7 @@ viper:
 	cd viper-lang && cmake .
 	cd viper-lang && cmake --build . -j
 
-obj/%.vpr.o: src/%.vpr Makefile
+obj/%.vpr.o: src/%.vpr viper Makefile
 	mkdir -p "$$(dirname $@)"
 	$(VPR) -o $@ $(VPRFLAGS) $<
 

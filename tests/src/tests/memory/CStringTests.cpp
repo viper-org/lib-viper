@@ -40,8 +40,7 @@ namespace MemoryTests
     {
         std::unique_ptr<unsigned char[]> ptr = std::make_unique<unsigned char[]>(0x1000);
 
-        random_bytes_engine rbe;
-        std::generate(ptr.get(), ptr.get() + 0x1000, std::ref(rbe));
+        std::memset(ptr.get(), 0, 0x1000);
 
         _F3std6memsetAbPii(ptr.get(), 0x69, 0x1000);
 

@@ -1,5 +1,5 @@
-override CXX=g++-13
-override LD=g++-13
+override CXX=c++
+override LD=c++
 
 override CXXFLAGS += \
 	-std=c++20 \

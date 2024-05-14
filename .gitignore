@@ -2,6 +2,12 @@
 viper-lang/
 obj/
 
+lib/obj/
+lib/viper-lang/
+
+tests/obj/
+tests/vstd_tests
+
 *.so
 *.o
 *.out

@@ -1,12 +1,22 @@
 namespace std {
-    func @memcpy(p1: i8*, p2: i8*, count: i32) -> i8* {
+    func @memcpy(dest: i8*, src: i8*, count: i32) -> i8* {
         while (count > 0) {
-            *p1 = *p2;
+            *dest = *src;
             count -= 1;
-            p1 = p1 + 1;
-            p2 = p2 + 1;
+            dest += 1;
+            src += 1;
         }
 
-        return p1;
+        return dest;
+    }
+
+    func @memset(ptr: i8*, value: i32, count: i32) -> i8* {
+        while (count > 0) {
+            *ptr = (i8) value;
+            count -= 1;
+            ptr += 1;
+        }
+
+        return ptr;
     }
 }

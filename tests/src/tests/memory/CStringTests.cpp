@@ -1,6 +1,5 @@
 // Copyright 2024 solar-mist
 
-
 #include "Test.h"
 
 #include <algorithm>
@@ -8,7 +7,11 @@
 #include <memory>
 #include <random>
 
-extern "C" void* _F3std6memcpyAbPbPi(void* p1, void* p2, int count);
+extern "C"
+{
+    void* _F3std6memcpyAbPbPi(void* dest, void* src, int count);
+    void* _F3std6memsetAbPii(void* ptr, int value, int count);
+}
 
 namespace MemoryTests
 {
@@ -29,6 +32,20 @@ namespace MemoryTests
         for (int i = 0; i < 0x1000; ++i)
         {
             REQUIRE(to[i] == from[i]);
+        }
+    }
+
+    TEST(memset, CStringTests)
+    {
+        std::unique_ptr<unsigned char[]> ptr = std::make_unique<unsigned char[]>(0x1000);
+
+        std::memset(ptr.get(), 0, 0x1000);
+
+        _F3std6memsetAbPii(ptr.get(), 0x69, 0x1000);
+
+        for (int i = 0; i < 0x1000; ++i)
+        {
+            REQUIRE(ptr[i] == 0x69);
         }
     }
 }

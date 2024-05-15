@@ -9,8 +9,8 @@
 
 extern "C"
 {
-    void* _F3std6memcpyAbPbPi(void* dest, void* src, int count);
-    void* _F3std6memsetAbPii(void* ptr, int value, int count);
+    void* _F3std1c6memcpyAbPbPi(void* dest, void* src, int count);
+    void* _F3std1c6memsetAbPii(void* ptr, int value, int count);
 }
 
 namespace MemoryTests
@@ -27,7 +27,7 @@ namespace MemoryTests
         random_bytes_engine rbe;
         std::generate(from.get(), from.get()+0x1000, std::ref(rbe));
 
-        _F3std6memcpyAbPbPi(to.get(), from.get(), 0x1000);
+        _F3std1c6memcpyAbPbPi(to.get(), from.get(), 0x1000);
 
         for (int i = 0; i < 0x1000; ++i)
         {
@@ -41,7 +41,7 @@ namespace MemoryTests
 
         std::memset(ptr.get(), 0, 0x1000);
 
-        _F3std6memsetAbPii(ptr.get(), 0x69, 0x1000);
+        _F3std1c6memsetAbPii(ptr.get(), 0x69, 0x1000);
 
         for (int i = 0; i < 0x1000; ++i)
         {

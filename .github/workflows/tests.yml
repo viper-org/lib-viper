@@ -13,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: clone viper
+      run: git clone https://github.com/viper-org/viper-lang
     - name: make
       run: make
     - name: make tests

@@ -1,6 +1,10 @@
 namespace std {
     namespace c {
-        func @memchr(str: i8*, c: i32, count: i32) -> i8* {
+        export func @strcpy(dest: i8*, src: i8*) -> i8*;
+
+        export func @strlen(str: i8*) -> i32;
+
+        export func @memchr(str: i8*, c: i32, count: i32) -> i8* {
             while (count > 0) {
                 count -= 1;
                 if (*str == (i8) c) {
@@ -12,7 +16,7 @@ namespace std {
             return nullptr;
         }
 
-        func @memcmp(str1: i8*, str2: i8*, count: i32) -> i32 {
+        export func @memcmp(str1: i8*, str2: i8*, count: i32) -> i32 {
             while (count > 0) {
                 count -= 1;
                 if (*str1 != *str2) {
@@ -25,7 +29,9 @@ namespace std {
             return 0;
         }
 
-        func @memcpy(dest: i8*, src: i8*, count: i32) -> i8* {
+        export func @memcpy(dest: i8*, src: i8*, count: i32) -> i8* {
+            let original: i8* = dest;
+
             while (count > 0) {
                 *dest = *src;
                 count -= 1;
@@ -33,10 +39,10 @@ namespace std {
                 src += 1;
             }
 
-            return dest;
+            return original;
         }
 
-        func @memset(ptr: i8*, value: i32, count: i32) -> i8* {
+        export func @memset(ptr: i8*, value: i32, count: i32) -> i8* {
             while (count > 0) {
                 *ptr = (i8) value;
                 count -= 1;
@@ -46,7 +52,12 @@ namespace std {
             return ptr;
         }
 
-        func @strcmp(str1: i8*, str2: i8*) -> i32 {
+        export func @strcat(dest: i8*, src: i8*) -> i8* {
+            strcpy(dest + strlen(dest), src);
+            return dest;
+        }
+
+        export func @strcmp(str1: i8*, str2: i8*) -> i32 {
             while (*str1 != 0) {
                 if (*str1 != *str2) {
                     return (i32) (*str1 - *str2);
@@ -56,6 +67,30 @@ namespace std {
             }
 
             return (i32) (*str1 - *str2);
+        }
+
+        export func @strcpy(dest: i8*, src: i8*) -> i8* {
+            let original: i8* = dest;
+
+            while (*dest != 0) {
+                *dest = *src;
+                dest += 1;
+                src += 1;
+
+                if (*src == 0)
+                    break;
+            }
+
+            return original;
+        }
+
+        export func @strlen(str: i8*) -> i32 {
+            let len: i32 = 0;
+            while (*str != 0) {
+                str += 1;
+                len += 1;
+            }
+            return len;
         }
     }
 }

@@ -1,19 +1,22 @@
 // Copyright 2024 solar-mist
 
-#include "Test.h"
+#include "../../../include/Test.h"
 
 #include <algorithm>
 #include <cstring>
 #include <memory>
 #include <random>
+#include <string>
 
 extern "C"
 {
     void* _F3std1c6memchrAbPii(const void* str, int c, int count);
     int _F3std1c6memcmpAbPbPi(const void* str1, const void* str2, int count);
-    void* _F3std1c6memcpyAbPbPi(void* dest, void* src, int count);
+    void* _F3std1c6memcpyAbPbPi(void* dest, const void* src, int count);
     void* _F3std1c6memsetAbPii(void* ptr, int value, int count);
     int _F3std1c6strcmpAbPbP(const char* str1, const char* str2);
+    char* _F3std1c6strcpyAbPbP(char* dest, const char* src);
+    int _F3std1c6strlenAbP(const char* str);
 }
 
 namespace MemoryTests
@@ -130,5 +133,37 @@ namespace MemoryTests
         str2 = "";
         cmp = _F3std1c6strcmpAbPbP(str1, str2);
         REQUIRE(cmp == 0);
+    }
+
+    TEST(strcpy, CStringTests)
+    {
+        std::unique_ptr<char[]> to   = std::make_unique<char[]>(0x1000);
+        std::unique_ptr<char[]> from = std::make_unique<char[]>(0x1000);
+        std::memset(to.get(), 1, 0x1000);
+
+        random_bytes_engine rbe;
+
+        auto rand_within_range = [&]() {
+            return std::uniform_int_distribution<unsigned char>(1, 255)(rbe);
+        };
+        std::generate(from.get(), from.get()+0x1000, rand_within_range);
+
+        _F3std1c6strcpyAbPbP(to.get(), from.get());
+
+        for (int i = 0; i < 0x1000; ++i)
+        {
+            REQUIRE(to[i] == from[i]);
+        }
+    }
+
+    TEST(strlen, CStringTests)
+    {
+        std::string str;
+
+        for (int i = 0; i < 0x1000; i++) {
+            int len = _F3std1c6strlenAbP(str.c_str());
+            REQUIRE(len == i);
+            str.append("h");
+        }
     }
 }

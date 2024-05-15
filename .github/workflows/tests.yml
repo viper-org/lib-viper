@@ -19,5 +19,5 @@ jobs:
       run: ./install.sh
     - name: make
       run: make
-    - name: make tests
-      run: make run_tests_md
+    - name: run tests
+      run: ./github_run_tests.sh >> $GITHUB_STEP_SUMMARY

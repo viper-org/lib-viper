@@ -1,5 +1,17 @@
 namespace std {
     namespace c {
+        func @memchr(str: i8*, c: i32, count: i32) -> i8* {
+            while (count > 0) {
+                count -= 1;
+                if (*str == (i8) c) {
+                    return str;
+                }
+                str += 1;
+            }
+
+            return nullptr;
+        }
+
         func @memcmp(str1: i8*, str2: i8*, count: i32) -> i32 {
             while (count > 0) {
                 count -= 1;

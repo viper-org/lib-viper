@@ -9,6 +9,7 @@
 
 extern "C"
 {
+    void* _F3std1c6memchrAbPii(const void* str, int c, int count);
     int _F3std1c6memcmpAbPbPi(const void* str1, const void* str2, int count);
     void* _F3std1c6memcpyAbPbPi(void* dest, void* src, int count);
     void* _F3std1c6memsetAbPii(void* ptr, int value, int count);
@@ -19,6 +20,20 @@ namespace MemoryTests
 {
     using random_bytes_engine = std::independent_bits_engine<
     std::default_random_engine, CHAR_BIT, unsigned char>;
+
+    TEST(memchr, CStringTests)
+    {
+        int c = 'h';
+        const char* str = "solar mist hello world";
+        void* chr = _F3std1c6memchrAbPii(str, c, 22);
+
+        REQUIRE(chr == str + 11);
+
+        str = "viper is the best programming language ong";
+        chr = _F3std1c6memchrAbPii(str, c, 43);
+
+        REQUIRE(chr == nullptr);
+    }
 
     TEST(memcmp, CStringTests)
     {

@@ -1,22 +1,22 @@
-_F3std1c8syscall0Al:
+syscall0:
     mov rax, rdi
     syscall
     ret
 
-_F3std1c8syscall1All:
+syscall1:
     mov rax, rdi
     mov rdi, rsi
     syscall
     ret
 
-_F3std1c8syscall2Alll:
+syscall2:
     mov rax, rdi
     mov rdi, rsi
     mov rsi, rdx
     syscall
     ret
 
-_F3std1c8syscall3Allll:
+syscall3:
     mov rax, rdi
     mov rdi, rsi
     mov rsi, rdx
@@ -24,7 +24,7 @@ _F3std1c8syscall3Allll:
     syscall
     ret
 
-_F3std1c8syscall4Alllll:
+syscall4:
     mov rax, rdi
     mov rdi, rsi
     mov rsi, rdx

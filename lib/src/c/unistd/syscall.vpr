@@ -7,7 +7,7 @@ namespace std {
         [[NoMangle]] func @syscall4(n: i64, a: i64, b: i64, c: i64, d: i64) -> i64;
         [[NoMangle]] func @syscall5(n: i64, a: i64, b: i64, c: i64, d: i64, e: i64) -> i64;
 
-        func @write(fd: i32, data: i8*, count: i32) -> i32 {
+        export func @write(fd: i32, data: i8*, count: i32) -> i32 {
             return (i32)syscall3((i64)1, (i64)fd, (i64)data, (i64)count);
         }
     }

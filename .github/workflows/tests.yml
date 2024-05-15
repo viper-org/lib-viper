@@ -13,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: install gcc13
+      run: sudo apt-get install gcc-13 && sudo ln -sf g++-13 /usr/bin/c++
     - name: clone viper
       run: ./install.sh
     - name: make

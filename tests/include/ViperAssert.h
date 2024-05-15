@@ -39,6 +39,7 @@ template <class A>
 struct AssertCheck {
     A a;
     AssertInfo& i;
+
     template <class B>
     AssertInfo operator==(B&& b) &&
     {
@@ -55,6 +56,98 @@ struct AssertCheck {
         }
 
         i.op = AssertOperator::EQ;
+        return std::move(i);
+    }
+    template <class B>
+    AssertInfo operator!=(B&& b) &&
+    {
+        i.result = (a != b) ? AssertResult::True : AssertResult::False;
+
+        if constexpr (formattable<A>)
+        {
+            i.lhs = std::format("{}", a);
+        }
+
+        if constexpr (formattable<B>)
+        {
+            i.rhs = std::format("{}", b);
+        }
+
+        i.op = AssertOperator::NEQ;
+        return std::move(i);
+    }
+
+    template <class B>
+    AssertInfo operator<(B&& b) &&
+    {
+        i.result = (a < b) ? AssertResult::True : AssertResult::False;
+
+        if constexpr (formattable<A>)
+        {
+            i.lhs = std::format("{}", a);
+        }
+
+        if constexpr (formattable<B>)
+        {
+            i.rhs = std::format("{}", b);
+        }
+
+        i.op = AssertOperator::LT;
+        return std::move(i);
+    }
+    template <class B>
+    AssertInfo operator>(B&& b) &&
+    {
+        i.result = (a > b) ? AssertResult::True : AssertResult::False;
+
+        if constexpr (formattable<A>)
+        {
+            i.lhs = std::format("{}", a);
+        }
+
+        if constexpr (formattable<B>)
+        {
+            i.rhs = std::format("{}", b);
+        }
+
+        i.op = AssertOperator::GT;
+        return std::move(i);
+    }
+
+    template <class B>
+    AssertInfo operator<=(B&& b) &&
+    {
+        i.result = (a <= b) ? AssertResult::True : AssertResult::False;
+
+        if constexpr (formattable<A>)
+        {
+            i.lhs = std::format("{}", a);
+        }
+
+        if constexpr (formattable<B>)
+        {
+            i.rhs = std::format("{}", b);
+        }
+
+        i.op = AssertOperator::LE;
+        return std::move(i);
+    }
+    template <class B>
+    AssertInfo operator>=(B&& b) &&
+    {
+        i.result = (a >= b) ? AssertResult::True : AssertResult::False;
+
+        if constexpr (formattable<A>)
+        {
+            i.lhs = std::format("{}", a);
+        }
+
+        if constexpr (formattable<B>)
+        {
+            i.rhs = std::format("{}", b);
+        }
+
+        i.op = AssertOperator::GE;
         return std::move(i);
     }
 };

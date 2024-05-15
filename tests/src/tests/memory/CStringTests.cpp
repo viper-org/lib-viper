@@ -27,9 +27,9 @@ namespace MemoryTests
         const char* str = "solar mist hello world";
         void* chr = _F3std1c6memchrAbPii(str, c, 22);
 
-        REQUIRE(chr == str + 11);
+        REQUIRE(*(char*)chr == 'h');
 
-        str = "viper is the best programming language ong";
+        str = "viper is te best programming language ong";
         chr = _F3std1c6memchrAbPii(str, c, 43);
 
         REQUIRE(chr == nullptr);

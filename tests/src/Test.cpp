@@ -66,25 +66,52 @@ namespace Test
         failedTests.push_back(fail);
     }
 
-    void Diagnostics()
+    void Diagnostics(DiagnosticOutputType outputType)
     {
-        std::cout << "\n" << totalAssertions << " assertions. \x1b[;32m" << totalAssertions - failedAssertions << " passed, \x1b[;31m" << failedAssertions << " failed.\x1b[;0m\n";
-        std::cout << tests.size() << " tests run. \x1b[;32m" << tests.size() - failedTests.size() << " succeeded, \x1b[;31m" << failedTests.size() << " failed.\x1b[;0m\n\n";
-        for (FailedTest& test : failedTests)
+        if (outputType == DiagnosticOutputType::Console)
         {
-            std::cout << "\x1b[;31mTest " << test.suite << "::" << test.name << "(" << test.file << ":" << test.line << ":" << test.col << ") failed with expansion:\x1b[;0m\n\t" << test.expansion << "\n";
+            std::cout << "\n" << totalAssertions << " assertions. \x1b[;32m" << totalAssertions - failedAssertions << " passed, \x1b[;31m" << failedAssertions << " failed.\x1b[;0m\n";
+            std::cout << tests.size() << " tests run. \x1b[;32m" << tests.size() - failedTests.size() << " succeeded, \x1b[;31m" << failedTests.size() << " failed.\x1b[;0m\n\n";
+            for (FailedTest& test : failedTests)
+            {
+                std::cout << "\x1b[;31mTest " << test.suite << "::" << test.name << "(" << test.file << ":" << test.line << ":" << test.col << ") failed with expansion:\x1b[;0m\n\t" << test.expansion << "\n";
+            }
+            if (failedTests.empty())
+            {
+                std::cout << "\x1b[;32mAll tests passed.\x1b[;0m\n";
+            }
+            else
+            {
+                std::exit(1);
+            }
         }
-        if (failedTests.empty())
+        else if (outputType == DiagnosticOutputType::Markdown)
         {
-            std::cout << "\x1b[;32mAll tests passed.\x1b[;0m\n";
-        }
-        else
-        {
-            std::exit(1);
+            std::cout << "# Test Results\n";
+            std::cout << std::format("{} tests run. :heavy_check_mark: {} succeeded, :x: {} failed.\n", tests.size(), tests.size() - failedTests.size(), failedTests.size());
+            
+            for (FailedTest& test : failedTests)
+            {
+                std::cout << std::format("<details>\n\t<summary>:x:{}::{}</summary>\n", test.suite, test.name);
+                std::cout << "| | |\n|-|-|";
+                std::cout << std::format("\n| **File:**      |{}", test.file);
+                std::cout << std::format("\n| **Location:**  |{}:{}", test.line, test.col);
+                std::cout << std::format("\n| **Assertion:** |{}", test.expansion);
+                std::cout << "</details>\n";
+            }
+            if (failedTests.empty())
+            {
+                std::cout << ":heavy_check_mark: All tests passed.\n";
+            }
+            else
+            {
+                std::cout << ":heavy_check_mark: All other tests passed.\n";
+                std::exit(1);
+            }
         }
     }
 
-    void RunTests()
+    void RunTests(DiagnosticOutputType outputType)
     {
         for (TestCase& test : tests)
         {
@@ -95,8 +122,11 @@ namespace Test
 
             const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-            std::cout << test.suite << "::" << test.name << "|duration|" << duration << "\n";
+            if (outputType != DiagnosticOutputType::Markdown)
+            {
+                std::cout << test.suite << "::" << test.name << "|duration|" << duration << "\n";
+            }
         }
-        Diagnostics();
+        Diagnostics(outputType);
     }
 }

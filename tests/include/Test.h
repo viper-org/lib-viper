@@ -23,9 +23,15 @@ namespace Test
     extern size_t totalAssertions;
 
     void TestFailed(AssertInfo info);
-    void Diagnostics();
 
-    void RunTests();
+    enum class DiagnosticOutputType
+    {
+        Console,
+        Markdown,
+    };
+    void Diagnostics(DiagnosticOutputType outputType);
+
+    void RunTests(DiagnosticOutputType outputType);
 
 #define TEST(name, suite) \
     void test$##name##$##suite(); \

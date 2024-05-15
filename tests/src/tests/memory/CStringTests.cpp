@@ -11,6 +11,7 @@ extern "C"
 {
     void* _F3std1c6memcpyAbPbPi(void* dest, void* src, int count);
     void* _F3std1c6memsetAbPii(void* ptr, int value, int count);
+    int _F3std1c6strcmpAbPbP(char* str1, char* str2);
 }
 
 namespace MemoryTests
@@ -47,5 +48,33 @@ namespace MemoryTests
         {
             REQUIRE(ptr[i] == 0x69);
         }
+    }
+
+    TEST(strcmp, CStringTests)
+    {
+        char* str1 = "solar";
+        char* str2 = "solar";
+        int cmp = _F3std1c6strcmpAbPbP(str1, str2);
+        REQUIRE(cmp == 0);
+
+        str1 = "solar";
+        str2 = "solar mist";
+        cmp = _F3std1c6strcmpAbPbP(str1, str2);
+        REQUIRE(cmp < 0);
+
+        str1 = "solar mist";
+        str2 = "solar";
+        cmp = _F3std1c6strcmpAbPbP(str1, str2);
+        REQUIRE(cmp > 0);
+
+        str1 = "hello";
+        str2 = "solar";
+        cmp = _F3std1c6strcmpAbPbP(str1, str2);
+        REQUIRE(cmp < 0);
+
+        str1 = "";
+        str2 = "";
+        cmp = _F3std1c6strcmpAbPbP(str1, str2);
+        REQUIRE(cmp == 0);
     }
 }

@@ -20,5 +20,17 @@ namespace std {
 
             return ptr;
         }
+
+        func @strcmp(str1: i8*, str2: i8*) -> i32 {
+            while (*str1 != 0) {
+                if (*str1 != *str2) {
+                    return (i32) (*str1 - *str2);
+                }
+                str1 += 1;
+                str2 += 1;
+            }
+
+            return (i32) (*str1 - *str2);
+        }
     }
 }

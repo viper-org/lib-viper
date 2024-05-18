@@ -9,7 +9,7 @@
 
 extern "C"
 {
-    int _F3std1c5writeAibPi(int fd, char* data, int count);
+    int _F3std1c5writeAlbPl(int fd, char* data, int count);
 }
 
 namespace MemoryTests
@@ -19,18 +19,19 @@ namespace MemoryTests
 
     TEST(write, SyscallTests)
     {
-        std::unique_ptr<char[]> data = std::make_unique<char[]>(0x1000);
+        constexpr std::size_t size = 0x1000;
+        std::unique_ptr<char[]> data = std::make_unique<char[]>(size);
         
         random_bytes_engine rbe;
-        std::generate(data.get(), data.get()+0x1000, std::ref(rbe));
+        std::generate(data.get(), data.get() + size, std::ref(rbe));
 
         std::FILE* file = std::tmpfile();
         int fd = fileno(file);
         
-        int count = _F3std1c5writeAibPi(fd, data.get(), 0x1000);
+        int count = _F3std1c5writeAlbPl(fd, data.get(), size);
         rewind(file);
 
-        REQUIRE(count == 0x1000);
+        REQUIRE(count == size);
         for (int i = 0; i < count; ++i)
         {
             REQUIRE((char)getc(file) == data[i]);

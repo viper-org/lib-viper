@@ -3,7 +3,7 @@ override VAS=viper-lang/_deps/vasm-build/compiler/vasm
 override LD=ld
 
 override VPRFLAGS += \
-	-Isrc
+	-I ./src
 
 override VASFLAGS += \
 	-felf

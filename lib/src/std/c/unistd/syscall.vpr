@@ -8,16 +8,25 @@ namespace std {
         [[NoMangle]] func @syscall5(n: i64, a: i64, b: i64, c: i64, d: i64, e: i64) -> i64;
         [[NoMangle]] func @syscall6(n: i64, a: i64, b: i64, c: i64, d: i64, e: i64, f: i64) -> i64;
 
-        export func @write(fd: i32, data: i8*, count: i32) -> i32 {
-            return (i32)syscall3((i64)1, (i64)fd, (i64)data, (i64)count);
-        }
+        export func @read(fd: i32, buf: i8*, count: i64) -> i64 =
+            syscall3((i64)0, (i64)fd, (i64)buf, count);
 
-        export func @mmap(addr: i8*, size: u64, prot: i32, flags: i32, fd: i32, offset: i32) -> i8* {
-            return (i8*)syscall6((i64)9, (i64)addr, (i64)size, (i64)prot, (i64)flags, (i64)fd, (i64)offset);
-        }
+        export func @write(fd: i32, data: i8*, count: u64) -> i64 =
+            syscall3((i64)1, (i64)fd, (i64)data, count);
 
-        export func @munmap(addr: i8*, size: u64) -> i32 {
-            return (i32)syscall2((i64)11, (i64)addr, (i64)size);
-        }
+        export func @open(pathname: i8*, flags: i32, mode: u16) -> i32 =
+            (i32)syscall3((i64)2, (i64)pathname, (i64)flags, (i64)mode);
+
+        export func @close(fd: i32) -> i32 =
+            (i32)syscall1((i64)3, (i64)fd);
+
+        export func @lseek(fd: i32, offset: i32, whence: i32) -> i32 =
+            (i32)syscall3((i64)8, (i64)fd, (i64)offset, (i64)whence);
+
+        export func @mmap(addr: i8*, size: u64, prot: i32, flags: i32, fd: i32, offset: i32) -> i8* =
+            (i8*)syscall6((i64)9, (i64)addr, (i64)size, (i64)prot, (i64)flags, (i64)fd, (i64)offset);
+
+        export func @munmap(addr: i8*, size: u64) -> i32 =
+            (i32)syscall2((i64)11, (i64)addr, (i64)size);
     }
 }

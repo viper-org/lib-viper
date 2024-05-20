@@ -53,7 +53,7 @@ namespace std {
         global heap: FreeListHeap = struct FreeListHeap { nullptr, 100 };
 
         export func @Alloc(size: u64) -> i8* {
-            if (heap.getMemoryHead() == (MemoryRegion*)nullptr) { // basically means the heap isn't constructed yet
+            if (heap.getMemoryHead() == (MemoryRegion*) nullptr) { // basically means the heap isn't constructed yet
                 heap.init();
             }
 
@@ -61,7 +61,7 @@ namespace std {
         }
 
         export func @Free(ptr: i8*) -> void {
-            if (heap.getMemoryHead() == (MemoryRegion*)nullptr) {
+            if (heap.getMemoryHead() == (MemoryRegion*) nullptr) {
                 return;
             }
 
@@ -121,27 +121,28 @@ namespace std {
 
             let padding: u64 = 0;
 
-            while (node != (HeapNode*)nullptr) {
+            while (node != (HeapNode*) nullptr) {
                 padding = GetPaddingWithHeader((u64)node, alignment, (u64)sizeof(HeapHeader));
                 let requiredSpace: u64 = size + padding;
 
                 if (node->blockSize >= requiredSpace) if (node->blockSize - requiredSpace < smallestDiff) { //TODO: &&
                     bestNode = node;
+                    smallestDiff = node->blockSize - requiredSpace;
                 }
 
                 prevNode = node;
                 node = node->next;
             }
 
-            if (paddingPtr != (u64*)nullptr) *paddingPtr = padding;
-            if (prevNodePtr != (HeapNode**)nullptr) *prevNodePtr = prevNode;
+            if (paddingPtr != (u64*) nullptr) *paddingPtr = padding;
+            if (prevNodePtr != (HeapNode**) nullptr) *prevNodePtr = prevNode;
 
             return bestNode;
         }
 
         func MemoryRegion@insertNode(prevNode: HeapNode*, newNode: HeapNode*) -> void {
-            if (prevNode == (HeapNode*)nullptr) {
-                if (this->head != (HeapNode*)nullptr) {
+            if (prevNode == (HeapNode*) nullptr) {
+                if (this->head != (HeapNode*) nullptr) {
                     newNode->next = this->head;
                 } else {
                     this->head = newNode;
@@ -153,7 +154,7 @@ namespace std {
         }
 
         func MemoryRegion@removeNode(prevNode: HeapNode*, delNode: HeapNode*) -> void {
-            if (prevNode == (HeapNode*)nullptr) {
+            if (prevNode == (HeapNode*) nullptr) {
                 this->head = delNode->next;
             } else {
                 prevNode->next = delNode->next;
@@ -167,7 +168,7 @@ namespace std {
         func FreeListHeap@destroy() -> void {
             let current: MemoryRegion* = this->memoryHead;
 
-            while (current != (MemoryRegion*)nullptr) {
+            while (current != (MemoryRegion*) nullptr) {
                 current->destroy();
             }
         }
@@ -191,7 +192,7 @@ namespace std {
             let region: MemoryRegion* = (MemoryRegion*) nullptr;
             let node: HeapNode* = this->findHeapNode(size, alignment, &padding, &prevNode, &region);
 
-            if (node == (HeapNode*)nullptr) {
+            if (node == (HeapNode*) nullptr) {
                 return nullptr;
             }
 
@@ -228,14 +229,14 @@ namespace std {
             freeNode->next = (HeapNode*) nullptr;
 
             let region: MemoryRegion* = this->findPointerRegion(ptr);
-            if (region == (MemoryRegion*)nullptr) {
+            if (region == (MemoryRegion*) nullptr) {
                 return; //TODO: error
             }
 
             let node: HeapNode* = region->head;
             let prevNode: HeapNode* = (HeapNode*) nullptr;
 
-            while (node != (HeapNode*)nullptr) {
+            while (node != (HeapNode*) nullptr) {
                 if (ptr < (i8*)node) {
                     region->insertNode(prevNode, freeNode);
                     break;
@@ -253,13 +254,13 @@ namespace std {
         func FreeListHeap@coalescence(prevNode: HeapNode*, freeNode: HeapNode*) -> void {
             let region: MemoryRegion* = this->findPointerRegion((i8*)freeNode);
 
-            if (freeNode->next != (HeapNode*)nullptr) if (((i8*)freeNode + freeNode->blockSize) == (i8*)freeNode->next) {
+            if (freeNode->next != (HeapNode*) nullptr) if (((i8*)freeNode + freeNode->blockSize) == (i8*)freeNode->next) {
                 freeNode->blockSize += freeNode->next->blockSize;
                 region->removeNode(freeNode, freeNode->next);
             }
 
 
-            if (prevNode->next != (HeapNode*)nullptr) if (((i8*)prevNode + prevNode->blockSize) == (i8*)freeNode) {
+            if (prevNode->next != (HeapNode*) nullptr) if (((i8*)prevNode + prevNode->blockSize) == (i8*)freeNode) {
                 prevNode->blockSize += freeNode->blockSize;
                 region->removeNode(prevNode, freeNode);
             }
@@ -268,7 +269,7 @@ namespace std {
         func FreeListHeap@findPointerRegion(ptr: i8*) -> MemoryRegion* {
             let current: MemoryRegion* = this->memoryHead;
 
-            while (current != (MemoryRegion*)nullptr) {
+            while (current != (MemoryRegion*) nullptr) {
                 let base: i8* = current->getStartAddress();
 
                 if (ptr >= base) if (ptr <= base + current->size) { //TODO: &&
@@ -283,11 +284,11 @@ namespace std {
             let current: MemoryRegion* = this->memoryHead;
             let node: HeapNode* = (HeapNode*) nullptr;
 
-            while (current != (MemoryRegion*)nullptr) {
+            while (current != (MemoryRegion*) nullptr) {
                 node = current->findHeapNode(size, alignment, paddingPtr, prevNodePtr);
 
-                if (node != (HeapNode*)nullptr) {
-                    if (regionPtr != (MemoryRegion**)nullptr) *regionPtr = current;
+                if (node != (HeapNode*) nullptr) {
+                    if (regionPtr != (MemoryRegion**) nullptr) *regionPtr = current;
                     return node;
                 }
             }
@@ -297,7 +298,7 @@ namespace std {
             current = this->getNewMemory(regionCount);
             node = current->findHeapNode(size, alignment, paddingPtr, prevNodePtr);
 
-            if (regionPtr != (MemoryRegion**)nullptr) *regionPtr = current;
+            if (regionPtr != (MemoryRegion**) nullptr) *regionPtr = current;
 
             return node;
         }
@@ -320,7 +321,7 @@ namespace std {
         }
 
         func FreeListHeap@insertMemory(memory: MemoryRegion*) -> void {
-            if (this->memoryHead == (MemoryRegion*)nullptr) {
+            if (this->memoryHead == (MemoryRegion*) nullptr) {
                 this->memoryHead = memory;
             } else {
                 memory->next = this->memoryHead;

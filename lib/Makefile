@@ -2,7 +2,8 @@ override VPR=viper-lang/compiler/viper
 override VAS=viper-lang/_deps/vasm-build/compiler/vasm
 override LD=ld
 
-override VPRFLAGS += 
+override VPRFLAGS += \
+	-Isrc
 
 override VASFLAGS += \
 	-felf

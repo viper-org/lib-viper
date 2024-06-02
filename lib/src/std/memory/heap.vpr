@@ -19,41 +19,251 @@ namespace std {
 
             next: struct MemoryRegion*;
 
-            func @init(size: u64) -> void;
-            func @destroy() -> void;
+            func @init(size: u64) -> void {
+                this->size = size;
+                this->used = sizeof(MemoryRegion); // assuming the MemoryRegion is at the beginning of its own block, which it SHOULD be
+                this->head = (HeapNode*) this->getStartAddress();
+                this->next = (MemoryRegion*) nullptr;
 
-            func @findHeapNode(size: u64, alignment: u64, paddingPtr: u64*, prevNodePtr: HeapNode**) -> HeapNode*;
-            func @insertNode(prevNode: HeapNode*, newNode: HeapNode*) -> void;
-            func @removeNode(prevNode: HeapNode*, delNode: HeapNode*) -> void;
+                this->head->next = (HeapNode*) nullptr;
+                this->head->blockSize = size - sizeof(MemoryRegion);
+            }
 
-            func @getStartAddress() -> i8*;
+            func @destroy() -> void {
+                std::c::munmap((i8*)this, (u64)this->size);
+            }
+
+            func @getStartAddress() -> i8* {
+                return (i8*)this + sizeof(MemoryRegion);
+            }
+
+            func @findHeapNode(size: u64, alignment: u64, paddingPtr: u64*, prevNodePtr: HeapNode**) -> HeapNode* {
+                let smallestDiff: u64 = 0xFFFFFFFFFFFFFFFF;
+
+                let node: HeapNode* = this->head;
+                let prevNode: HeapNode* = (HeapNode*) nullptr;
+                let bestNode: HeapNode* = (HeapNode*) nullptr;
+
+                let padding: u64 = 0;
+
+                while (node != (HeapNode*) nullptr) {
+                    padding = GetPaddingWithHeader((u64)node, alignment, (u64)sizeof(HeapHeader));
+                    let requiredSpace: u64 = size + padding;
+
+                    if (node->blockSize >= requiredSpace) if (node->blockSize - requiredSpace < smallestDiff) { //TODO: &&
+                        bestNode = node;
+                        smallestDiff = node->blockSize - requiredSpace;
+                    }
+
+                    prevNode = node;
+                    node = node->next;
+                }
+
+                if (paddingPtr != (u64*) nullptr) *paddingPtr = padding;
+                if (prevNodePtr != (HeapNode**) nullptr) *prevNodePtr = prevNode;
+
+                return bestNode;
+            }
+
+            func @insertNode(prevNode: HeapNode*, newNode: HeapNode*) -> void {
+                if (prevNode == (HeapNode*) nullptr) {
+                    if (this->head != (HeapNode*) nullptr) {
+                        newNode->next = this->head;
+                    } else {
+                        this->head = newNode;
+                    }
+                } else {
+                    newNode->next = prevNode->next;
+                    prevNode->next = newNode;
+                }
+            }
+
+            func @removeNode(prevNode: HeapNode*, delNode: HeapNode*) -> void {
+                if (prevNode == (HeapNode*) nullptr) {
+                    this->head = delNode->next;
+                } else {
+                    prevNode->next = delNode->next;
+                }
+            }
         }
 
         using struct FreeListHeap {
             private memoryHead: MemoryRegion*;
             private regionSize: u64;
 
-            func @init() -> void;
-            func @destroy() -> void;
+            func @init() -> void {
+                this->memoryHead = this->getNewMemory((i64)1);
+            }
 
-            func @getMemoryHead() -> MemoryRegion*;
+            func @destroy() -> void {
+                let current: MemoryRegion* = this->memoryHead;
 
-            func @alloc(size: u64, alignment: u64) -> i8*;
-            func @free(ptr: i8*) -> void;
+                while (current != (MemoryRegion*) nullptr) {
+                    current->destroy();
+                }
+            }
 
-            private func @coalescence(prevNode: HeapNode*, freeNode: HeapNode*) -> void;
+            func @getMemoryHead() -> MemoryRegion* {
+                return this->memoryHead;
+            }
 
-            private func @findPointerRegion(ptr: i8*) -> MemoryRegion*;
-            private func @findHeapNode(size: u64, alignment: u64, paddingPtr: u64*, prevNodePtr: HeapNode**, regionPtr: MemoryRegion**) -> HeapNode*;
+            // this will return nullptr if and ONLY if the heap physically cannot get more memory from the os
+            func @alloc(size: u64, alignment: u64) -> i8* {
+                if (size < (u64)sizeof(HeapNode)) {
+                    size = (u64)sizeof(HeapNode);
+                }
 
-            private func @getNewMemory(count: u64) -> MemoryRegion*;
-            private func @insertMemory(memory: MemoryRegion*) -> void;
+                if (alignment < (u64)8) {
+                    alignment = (u64)8;
+                }
+
+                let padding: u64 = 0;
+                let prevNode: HeapNode* = (HeapNode*) nullptr;
+                let region: MemoryRegion* = (MemoryRegion*) nullptr;
+                let node: HeapNode* = this->findHeapNode(size, alignment, &padding, &prevNode, &region);
+
+                if (node == (HeapNode*) nullptr) {
+                    return nullptr;
+                }
+
+                let alignmentPadding: u64 = padding - sizeof(HeapHeader);
+                let requiredSpace: u64 = size + padding;
+                let remaining: u64 = node->blockSize - requiredSpace;
+
+                if (remaining > 0) {
+                    let newNode: HeapNode* = (HeapNode*)((i8*)node + requiredSpace);
+                    newNode->blockSize = remaining;
+                    region->insertNode(node, newNode);
+                }
+
+                region->removeNode(prevNode, node);
+
+                let header: HeapHeader* = (HeapHeader*)((i8*)node + alignmentPadding);
+                header->blockSize = requiredSpace;
+                header->padding = alignmentPadding;
+
+                region->used += requiredSpace;
+
+                return ((i8*)header + sizeof(HeapHeader));
+            }
+
+            func @free(ptr: i8*) -> void {
+                if (ptr == nullptr) {
+                    return;
+                }
+
+                let header: HeapHeader* = (HeapHeader*)(ptr - sizeof(HeapHeader));
+                let freeNode: HeapNode* = (HeapNode*)header;
+
+                freeNode->blockSize = header->blockSize + header->padding;
+                freeNode->next = (HeapNode*) nullptr;
+
+                let region: MemoryRegion* = this->findPointerRegion(ptr);
+                if (region == (MemoryRegion*) nullptr) {
+                    return; //TODO: error
+                }
+
+                let node: HeapNode* = region->head;
+                let prevNode: HeapNode* = (HeapNode*) nullptr;
+
+                while (node != (HeapNode*) nullptr) {
+                    if (ptr < (i8*)node) {
+                        region->insertNode(prevNode, freeNode);
+                        break;
+                    }
+
+                    prevNode = node;
+                    node = node->next;
+                }
+
+                region->used -= freeNode->blockSize;
+
+                this->coalescence(prevNode, freeNode);
+            }
+
+            private func @coalescence(prevNode: HeapNode*, freeNode: HeapNode*) -> void {
+                let region: MemoryRegion* = this->findPointerRegion((i8*)freeNode);
+
+                if (freeNode->next != (HeapNode*) nullptr) if (((i8*)freeNode + freeNode->blockSize) == (i8*)freeNode->next) {
+                    freeNode->blockSize += freeNode->next->blockSize;
+                    region->removeNode(freeNode, freeNode->next);
+                }
+
+                if (prevNode->next != (HeapNode*) nullptr) if (((i8*)prevNode + prevNode->blockSize) == (i8*)freeNode) {
+                    prevNode->blockSize += freeNode->blockSize;
+                    region->removeNode(prevNode, freeNode);
+                }
+            }
+
+            private func @findPointerRegion(ptr: i8*) -> MemoryRegion* {
+                let current: MemoryRegion* = this->memoryHead;
+
+                while (current != (MemoryRegion*) nullptr) {
+                    let base: i8* = current->getStartAddress();
+
+                    if (ptr >= base) if (ptr <= base + current->size) { //TODO: &&
+                        return current;
+                    }
+                }
+
+                return (MemoryRegion*) nullptr;
+            }
+
+            private func @findHeapNode(size: u64, alignment: u64, paddingPtr: u64*, prevNodePtr: HeapNode**, regionPtr: MemoryRegion**) -> HeapNode* {
+                let current: MemoryRegion* = this->memoryHead;
+                let node: HeapNode* = (HeapNode*) nullptr;
+
+                while (current != (MemoryRegion*) nullptr) {
+                    node = current->findHeapNode(size, alignment, paddingPtr, prevNodePtr);
+
+                    if (node != (HeapNode*) nullptr) {
+                        if (regionPtr != (MemoryRegion**) nullptr)
+                            *regionPtr = current;
+                        return node;
+                    }
+                }
+
+                let regionCount: u64 = (size + this->regionSize - 1) / this->regionSize;
+
+                current = this->getNewMemory(regionCount);
+                node = current->findHeapNode(size, alignment, paddingPtr, prevNodePtr);
+
+                if (regionPtr != (MemoryRegion**) nullptr) *regionPtr = current;
+
+                return node;
+            }
+
+            // returns a MemoryRegion with the size `this->regionSize * count` and `sizeof(MemoryRegion)` bytes in use. the region is automatically inserted into the region linked list
+            private func @getNewMemory(count: u64) -> MemoryRegion* {
+                let finalSize: u64 = this->regionSize * count;
+
+                let region: MemoryRegion* = std::c::mmap(nullptr, finalSize, 3 /*PROT_READ | PROT_WRITE*/, 34 /*MAP_PRIVATE | MAP_ANONYMOUS*/, -1, 0); //TODO: constants for mmap prots and flags
+                if (region == nullptr) {
+                    //TODO: proper errors
+                    return (MemoryRegion*) nullptr;
+                }
+
+                region->init(finalSize);
+
+                this->insertMemory(region);
+
+                return region;
+            }
+
+            private func @insertMemory(memory: MemoryRegion*) -> void {
+                if (this->memoryHead == (MemoryRegion*) nullptr) {
+                    this->memoryHead = memory;
+                } else {
+                    memory->next = this->memoryHead;
+                    this->memoryHead = memory;
+                }
+            }
         }
 
         global heap: FreeListHeap = struct FreeListHeap { nullptr, 100 };
 
         export func @Alloc(size: u64) -> i8* {
-            if (heap.getMemoryHead() == (MemoryRegion*)nullptr) { // basically means the heap isn't constructed yet
+            if (heap.getMemoryHead() == (MemoryRegion*) nullptr) { // basically means the heap isn't constructed yet
                 heap.init();
             }
 
@@ -61,14 +271,12 @@ namespace std {
         }
 
         export func @Free(ptr: i8*) -> void {
-            if (heap.getMemoryHead() == (MemoryRegion*)nullptr) {
+            if (heap.getMemoryHead() == (MemoryRegion*) nullptr) {
                 return;
             }
 
             heap.free(ptr);
         }
-
-        // implementation
 
         func @GetPaddingWithHeader(ptr: u64, alignment: u64, headerSize: u64) -> u64 {
             let modulo: u64 = ptr & (alignment - 1);
@@ -92,240 +300,6 @@ namespace std {
             }
 
             return padding;
-        }
-
-        func MemoryRegion@init(size: u64) -> void {
-            this->size = size;
-            this->used = sizeof(MemoryRegion); // assuming the MemoryRegion is at the beginning of its own block, which it SHOULD be
-            this->head = (HeapNode*) this->getStartAddress();
-            this->next = (MemoryRegion*) nullptr;
-
-            this->head->next = (HeapNode*) nullptr;
-            this->head->blockSize = size - sizeof(MemoryRegion);
-        }
-
-        func MemoryRegion@destroy() -> void {
-            std::c::munmap((i8*)this, (u64)this->size);
-        }
-
-        func MemoryRegion@getStartAddress() -> i8* {
-            return (i8*)this + sizeof(MemoryRegion);
-        }
-
-        func MemoryRegion@findHeapNode(size: u64, alignment: u64, paddingPtr: u64*, prevNodePtr: HeapNode**) -> HeapNode* {
-            let smallestDiff: u64 = 0xFFFFFFFFFFFFFFFF;
-
-            let node: HeapNode* = this->head;
-            let prevNode: HeapNode* = (HeapNode*) nullptr;
-            let bestNode: HeapNode* = (HeapNode*) nullptr;
-
-            let padding: u64 = 0;
-
-            while (node != (HeapNode*)nullptr) {
-                padding = GetPaddingWithHeader((u64)node, alignment, (u64)sizeof(HeapHeader));
-                let requiredSpace: u64 = size + padding;
-
-                if (node->blockSize >= requiredSpace) if (node->blockSize - requiredSpace < smallestDiff) { //TODO: &&
-                    bestNode = node;
-                }
-
-                prevNode = node;
-                node = node->next;
-            }
-
-            if (paddingPtr != (u64*)nullptr) *paddingPtr = padding;
-            if (prevNodePtr != (HeapNode**)nullptr) *prevNodePtr = prevNode;
-
-            return bestNode;
-        }
-
-        func MemoryRegion@insertNode(prevNode: HeapNode*, newNode: HeapNode*) -> void {
-            if (prevNode == (HeapNode*)nullptr) {
-                if (this->head != (HeapNode*)nullptr) {
-                    newNode->next = this->head;
-                } else {
-                    this->head = newNode;
-                }
-            } else {
-                newNode->next = prevNode->next;
-                prevNode->next = newNode;
-            }
-        }
-
-        func MemoryRegion@removeNode(prevNode: HeapNode*, delNode: HeapNode*) -> void {
-            if (prevNode == (HeapNode*)nullptr) {
-                this->head = delNode->next;
-            } else {
-                prevNode->next = delNode->next;
-            }
-        }
-
-        func FreeListHeap@init() -> void {
-            this->memoryHead = this->getNewMemory((i64)1);
-        }
-
-        func FreeListHeap@destroy() -> void {
-            let current: MemoryRegion* = this->memoryHead;
-
-            while (current != (MemoryRegion*)nullptr) {
-                current->destroy();
-            }
-        }
-
-        func FreeListHeap@getMemoryHead() -> MemoryRegion* {
-            return this->memoryHead;
-        }
-
-        // this will return nullptr if and ONLY if the heap physically cannot get more memory from the os
-        func FreeListHeap@alloc(size: u64, alignment: u64) -> i8* {
-            if (size < (u64)sizeof(HeapNode)) {
-                size = (u64)sizeof(HeapNode);
-            }
-
-            if (alignment < (u64)8) {
-                alignment = (u64)8;
-            }
-
-            let padding: u64 = 0;
-            let prevNode: HeapNode* = (HeapNode*) nullptr;
-            let region: MemoryRegion* = (MemoryRegion*) nullptr;
-            let node: HeapNode* = this->findHeapNode(size, alignment, &padding, &prevNode, &region);
-
-            if (node == (HeapNode*)nullptr) {
-                return nullptr;
-            }
-
-            let alignmentPadding: u64 = padding - sizeof(HeapHeader);
-            let requiredSpace: u64 = size + padding;
-            let remaining: u64 = node->blockSize - requiredSpace;
-
-            if (remaining > 0) {
-                let newNode: HeapNode* = (HeapNode*)((i8*)node + requiredSpace);
-                newNode->blockSize = remaining;
-                region->insertNode(node, newNode);
-            }
-
-            region->removeNode(prevNode, node);
-
-            let header: HeapHeader* = (HeapHeader*)((i8*)node + alignmentPadding);
-            header->blockSize = requiredSpace;
-            header->padding = alignmentPadding;
-
-            region->used += requiredSpace;
-
-            return ((i8*)header + sizeof(HeapHeader));
-        }
-
-        func FreeListHeap@free(ptr: i8*) -> void {
-            if (ptr == nullptr) {
-                return;
-            }
-
-            let header: HeapHeader* = (HeapHeader*)(ptr - sizeof(HeapHeader));
-            let freeNode: HeapNode* = (HeapNode*)header;
-
-            freeNode->blockSize = header->blockSize + header->padding;
-            freeNode->next = (HeapNode*) nullptr;
-
-            let region: MemoryRegion* = this->findPointerRegion(ptr);
-            if (region == (MemoryRegion*)nullptr) {
-                return; //TODO: error
-            }
-
-            let node: HeapNode* = region->head;
-            let prevNode: HeapNode* = (HeapNode*) nullptr;
-
-            while (node != (HeapNode*)nullptr) {
-                if (ptr < (i8*)node) {
-                    region->insertNode(prevNode, freeNode);
-                    break;
-                }
-
-                prevNode = node;
-                node = node->next;
-            }
-
-            region->used -= freeNode->blockSize;
-
-            this->coalescence(prevNode, freeNode);
-        }
-
-        func FreeListHeap@coalescence(prevNode: HeapNode*, freeNode: HeapNode*) -> void {
-            let region: MemoryRegion* = this->findPointerRegion((i8*)freeNode);
-
-            if (freeNode->next != (HeapNode*)nullptr) if (((i8*)freeNode + freeNode->blockSize) == (i8*)freeNode->next) {
-                freeNode->blockSize += freeNode->next->blockSize;
-                region->removeNode(freeNode, freeNode->next);
-            }
-
-
-            if (prevNode->next != (HeapNode*)nullptr) if (((i8*)prevNode + prevNode->blockSize) == (i8*)freeNode) {
-                prevNode->blockSize += freeNode->blockSize;
-                region->removeNode(prevNode, freeNode);
-            }
-        }
-
-        func FreeListHeap@findPointerRegion(ptr: i8*) -> MemoryRegion* {
-            let current: MemoryRegion* = this->memoryHead;
-
-            while (current != (MemoryRegion*)nullptr) {
-                let base: i8* = current->getStartAddress();
-
-                if (ptr >= base) if (ptr <= base + current->size) { //TODO: &&
-                    return current;
-                }
-            }
-
-            return (MemoryRegion*) nullptr;
-        }
-
-        func FreeListHeap@findHeapNode(size: u64, alignment: u64, paddingPtr: u64*, prevNodePtr: HeapNode**, regionPtr: MemoryRegion**) -> HeapNode* {
-            let current: MemoryRegion* = this->memoryHead;
-            let node: HeapNode* = (HeapNode*) nullptr;
-
-            while (current != (MemoryRegion*)nullptr) {
-                node = current->findHeapNode(size, alignment, paddingPtr, prevNodePtr);
-
-                if (node != (HeapNode*)nullptr) {
-                    if (regionPtr != (MemoryRegion**)nullptr) *regionPtr = current;
-                    return node;
-                }
-            }
-
-            let regionCount: u64 = (size + this->regionSize - 1) / this->regionSize;
-
-            current = this->getNewMemory(regionCount);
-            node = current->findHeapNode(size, alignment, paddingPtr, prevNodePtr);
-
-            if (regionPtr != (MemoryRegion**)nullptr) *regionPtr = current;
-
-            return node;
-        }
-
-        // returns a MemoryRegion with the size `this->regionSize * count` and `sizeof(MemoryRegion)` bytes in use. the region is automatically inserted into the region linked list
-        func FreeListHeap@getNewMemory(count: u64) -> MemoryRegion* {
-            let finalSize: u64 = this->regionSize * count;
-
-            let region: MemoryRegion* = std::c::mmap(nullptr, finalSize, 3 /*PROT_READ | PROT_WRITE*/, 34 /*MAP_PRIVATE | MAP_ANONYMOUS*/, -1, 0); //TODO: constants for mmap prots and flags
-            if (region == nullptr) {
-                //TODO: proper errors
-                return (MemoryRegion*) nullptr;
-            }
-
-            region->init(finalSize);
-
-            this->insertMemory(region);
-
-            return region;
-        }
-
-        func FreeListHeap@insertMemory(memory: MemoryRegion*) -> void {
-            if (this->memoryHead == (MemoryRegion*)nullptr) {
-                this->memoryHead = memory;
-            } else {
-                memory->next = this->memoryHead;
-                this->memoryHead = memory;
-            }
         }
     }
 }

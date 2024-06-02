@@ -1,9 +1,5 @@
 namespace std {
     namespace c {
-        export func @strcpy(dest: i8*, src: i8*) -> i8*;
-
-        export func @strlen(str: i8*) -> i32;
-
         export func @memchr(str: i8*, c: i32, count: i32) -> i8* {
             while (count > 0) {
                 count -= 1;
